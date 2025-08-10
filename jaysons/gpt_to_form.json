@@ -1,0 +1,105 @@
+{
+    "url": "https://www.cdph.ca.gov/Programs/CHSI/CDPH%20Document%20Library/Affidavit%20for%20Free%20Certified%20Copy%20of%20Birth%20Certificate%20-%208-15.pdf",
+    "annotations": [
+      {
+        "text": "{{$json.body.name_of_requestor}}",
+        "x": 71,
+        "y": 216,
+        "width": 204,
+        "height": 20,
+        "pages": "1",
+        "objectType": 1,
+        "objectId": "d3fef198-0f08-45c8-aa1b-89514e0199d1"
+      },
+      {
+        "text": "{{$json.body.homeless}}",
+        "x": 85,
+        "y": 278,
+        "width": 23,
+        "height": 19,
+        "pages": "1",
+        "objectType": 1,
+        "objectId": "9b77da32-b120-4fe3-b65e-d9793d6c9f1e"
+      },
+      {
+        "text": "{{$json.body.request_on_behalf}}",
+        "x": 82,
+        "y": 315,
+        "width": 26,
+        "height": 20,
+        "pages": "1",
+        "objectType": 1,
+        "objectId": "a15d8572-13f6-4164-8c55-4a4bf0332f70"
+      },
+      {
+        "text": "{{$json.body.name_of_child}}",
+        "x": 280,
+        "y": 339,
+        "width": 250,
+        "height": 20,
+        "pages": "1",
+        "objectType": 1,
+        "objectId": "89c44e82-49d7-45d2-b0df-0486f5959984"
+      },
+      {
+        "text": "entity name - save for agent",
+        "x": 61,
+        "y": 497,
+        "width": 482,
+        "height": 20,
+        "pages": "1",
+        "objectType": 1,
+        "objectId": "d5fa7e5d-4b2e-4965-b7de-a91c0a70c004"
+      },
+      {
+        "text": "address - save for agent",
+        "x": 110,
+        "y": 524,
+        "width": 434,
+        "height": 19,
+        "pages": "1",
+        "objectType": 1,
+        "objectId": "714661f2-5bed-4e16-b0d0-919b2999244e"
+      },
+      {
+        "text": "phone number - save for agent",
+        "x": 144,
+        "y": 545,
+        "width": 167,
+        "height": 18,
+        "pages": "1",
+        "objectType": 1,
+        "objectId": "e82a4999-35cd-4906-8635-2d7891c0db16"
+      },
+      {
+        "text": "email - save for agent",
+        "x": 350,
+        "y": 545,
+        "width": 191,
+        "height": 20,
+        "pages": "1",
+        "objectType": 1,
+        "objectId": "3f61bbc1-4462-49b6-9d38-ea760461e6f3"
+      },
+      {
+        "text": "name of agent - save for agent",
+        "x": 75,
+        "y": 567,
+        "width": 205,
+        "height": 20,
+        "pages": "1",
+        "objectType": 1,
+        "objectId": "4586ce51-008c-47d2-8f29-5b5e1fb1b6d2"
+      },
+      {
+        "text": "put in name of homeless person",
+        "x": 274,
+        "y": 598,
+        "width": 274,
+        "height": 25,
+        "pages": "1",
+        "objectType": 1,
+        "objectId": "17e86d3f-0fc2-4d45-b80b-a566ca9b3c94"
+      }
+    ]
+  }

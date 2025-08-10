@@ -1,0 +1,3 @@
+# Update your .env file with the correct URL
+echo "OPENAI_API_KEY=your_openai_api_key_here" > .env
+echo "N8N_WEBHOOK_URL=https://dignifi.app.n8n.cloud/webhook/fill_spreadsheet" >> .env

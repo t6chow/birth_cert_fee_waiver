@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Birth Certificate Fee Waiver - Dignifi</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-content">
+                <i class="fas fa-certificate"></i>
+                <h1>Birth Certificate Fee Waiver</h1>
+                <p class="subtitle">AI-powered form assistance for California birth certificate fee waivers</p>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Status Cards -->
+            <div class="status-grid">
+                <div class="status-card" id="api-status">
+                    <i class="fas fa-robot"></i>
+                    <h3>AI Assistant</h3>
+                    <p class="status-text">Checking...</p>
+                </div>
+                <div class="status-card" id="webhook-status">
+                    <i class="fas fa-link"></i>
+                    <h3>Webhook Connection</h3>
+                    <p class="status-text">Not tested</p>
+                    <button class="btn btn-secondary btn-sm" onclick="testWebhook()">Test Connection</button>
+                </div>
+            </div>
+
+            <!-- Input Methods -->
+            <div class="input-section">
+                <h2><i class="fas fa-edit"></i> How would you like to provide information?</h2>
+                
+                <!-- Tab Navigation -->
+                <div class="tabs">
+                    <button class="tab-btn active" onclick="switchTab('natural')">
+                        <i class="fas fa-comments"></i> Natural Language
+                    </button>
+                    <button class="tab-btn" onclick="switchTab('structured')">
+                        <i class="fas fa-list"></i> Structured Form
+                    </button>
+                </div>
+
+                <!-- Natural Language Input -->
+                <div id="natural-tab" class="tab-content active">
+                    <div class="form-group">
+                        <label for="naturalInput">
+                            <i class="fas fa-keyboard"></i> Describe your situation
+                        </label>
+                        <textarea 
+                            id="naturalInput" 
+                            placeholder="Example: My name is John Smith, email john@example.com. I am signing up for myself. OR: My name is Jane Smith, email jane@example.com. I am signing up for my child, Tommy Smith."
+                            rows="6"
+                        ></textarea>
+                        <div class="help-text">
+                            <i class="fas fa-info-circle"></i>
+                            Describe your situation naturally. Our AI will extract the required information.
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Structured Form -->
+                <div id="structured-tab" class="tab-content">
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label for="signupType">
+                                <i class="fas fa-users"></i> Who are you signing up? *
+                            </label>
+                            <select id="signupType" onchange="toggleSignupType()">
+                                <option value="">Select...</option>
+                                <option value="self">Myself (Adult)</option>
+                                <option value="child">My Child</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="adultName" id="adultNameLabel">
+                                <i class="fas fa-user"></i> Your Name *
+                            </label>
+                            <input type="text" id="adultName" placeholder="Enter your full name">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="emailAddress">
+                                <i class="fas fa-envelope"></i> Your Email Address *
+                            </label>
+                            <input type="email" id="emailAddress" placeholder="Enter your email address">
+                        </div>
+
+                        <div class="form-group" id="childNameGroup" style="display: none;">
+                            <label for="childName">
+                                <i class="fas fa-child"></i> Child's Name *
+                            </label>
+                            <input type="text" id="childName" placeholder="Enter child's full name">
+                        </div>
+
+                    </div>
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="action-buttons">
+                    <button class="btn btn-primary" onclick="processForm()" id="processBtn">
+                        <i class="fas fa-cogs"></i> Process & Submit
+                    </button>
+                    <button class="btn btn-secondary" onclick="clearForm()">
+                        <i class="fas fa-eraser"></i> Clear Form
+                    </button>
+                </div>
+            </div>
+
+            <!-- Results Section -->
+            <div class="results-section" id="resultsSection" style="display: none;">
+                <h2><i class="fas fa-check-circle"></i> Results</h2>
+                <div id="resultsContent"></div>
+            </div>
+
+            <!-- History Section -->
+            <div class="history-section" id="historySection" style="display: none;">
+                <div class="section-header">
+                    <h2><i class="fas fa-history"></i> Processing History</h2>
+                    <button class="btn btn-secondary btn-sm" onclick="clearHistory()">
+                        <i class="fas fa-trash"></i> Clear History
+                    </button>
+                </div>
+                <div id="historyContent"></div>
+            </div>
+        </main>
+
+        <!-- Footer -->
+        <footer class="footer">
+            <p>&copy; 2024 Dignifi - Powered by AI</p>
+        </footer>
+    </div>
+
+    <!-- Loading Modal -->
+    <div class="modal" id="loadingModal">
+        <div class="modal-content">
+            <div class="loading-spinner"></div>
+            <h3>Processing with AI...</h3>
+            <p>Extracting form data and sending to webhook</p>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+</body>
+</html>

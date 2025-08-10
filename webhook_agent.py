@@ -16,10 +16,10 @@ class WebhookAgent:
         
         # Define the form schema
         self.form_schema = {
-            "name_of_requestor": "string",
-            "homeless": "y/n",
-            "request_on_behalf": "y/n", 
-            "name_of_child": "string (only if request_on_behalf is 'y', otherwise null)"
+            "adult_name": "string (name of the adult making the request)",
+            "email_address": "string (email address, required)",
+            "signup_type": "self/child (self if signing up themselves, child if signing up for their child)", 
+            "child_name": "string (only if signup_type is 'child', otherwise null)"
         }
     
     def collect_form_data(self, user_input: str) -> Dict[str, Any]:
@@ -36,26 +36,25 @@ class WebhookAgent:
         You are a helpful assistant that extracts form data from user responses.
 
         You need to collect the following information:
-        - name_of_requestor: The name of the person making the request
-        - homeless: Whether the person is homeless (y/n)
-        - request_on_behalf: Whether the request is being made on behalf of someone else (y/n)
-        - name_of_child: The name of the child (only if request_on_behalf is 'y', otherwise null)
+        - adult_name: The name of the adult making the request (required)
+        - email_address: The email address of the adult (required)
+        - signup_type: Whether they are signing up for themselves or their child (self/child)
+        - child_name: The name of the child (only if signup_type is 'child', otherwise null)
 
         IMPORTANT INFERENCE RULES:
-        1. If request_on_behalf is not explicitly mentioned, infer based on context:
-        - If the person mentions "for myself", "for me", "I'm requesting", or similar → request_on_behalf = 'n'
-        - If the person mentions "for my child", "on behalf of", "for someone else" → request_on_behalf = 'y'
-        - If no context about behalf is given, assume request_on_behalf = 'n' (self-request)
+        1. If signup_type is not explicitly mentioned, infer based on context:
+        - If the person mentions "for myself", "for me", "I'm signing up", "I need" → signup_type = 'self'
+        - If the person mentions "for my child", "my kid", "my son/daughter" → signup_type = 'child'
+        - If no context about who they're signing up is given, assume signup_type = 'self'
 
-        2. If homeless status is not explicitly mentioned, infer based on context:
-        - If they mention being "homeless", "living on the street", etc. → homeless = 'y'
-        - If they mention having a home, address, or no mention of homelessness → homeless = 'n'
 
-        3. If name_of_child is mentioned but request_on_behalf is not explicitly 'y', set request_on_behalf = 'y'
+        3. If child_name is mentioned but signup_type is not explicitly 'child', set signup_type = 'child'
 
-        4. All fields are required. Use inference to fill missing fields when possible.
+        4. All fields except child_name are required. Use inference to fill missing fields when possible.
 
-        5. Return the data as a valid JSON object with all fields present.
+        5. email_address is now required - if not provided, ask for it or set to null if truly not available.
+
+        6. Return the data as a valid JSON object with all fields present.
 
         Current form schema: {json.dumps(self.form_schema, indent=2)}
         """
@@ -113,12 +112,6 @@ class WebhookAgent:
                         form_data["name_of_requestor"] = parts[1].strip()
                         break
         
-        # Extract homeless status
-        if "homeless" in content.lower():
-            if "yes" in content.lower() or "y" in content.lower():
-                form_data["homeless"] = "y"
-            elif "no" in content.lower() or "n" in content.lower():
-                form_data["homeless"] = "n"
         
         # Extract request_on_behalf status
         if "behalf" in content.lower():
@@ -141,34 +134,55 @@ class WebhookAgent:
     
     def _validate_form_data(self, form_data: Dict[str, Any]) -> Dict[str, Any]:
         """Validate and clean the form data."""
+        result = {"valid": True, "error": None}
         validated = {}
         
-        # Validate name_of_requestor
-        if "name_of_requestor" in form_data and form_data["name_of_requestor"]:
-            validated["name_of_requestor"] = str(form_data["name_of_requestor"]).strip()
+        # Handle both old and new field names for backwards compatibility
+        # Validate adult_name (or name_of_requestor for backwards compatibility)
+        adult_name = form_data.get("adult_name") or form_data.get("name_of_requestor")
+        if adult_name:
+            validated["adult_name"] = str(adult_name).strip()
+        else:
+            result["valid"] = False
+            result["error"] = "Adult name is required"
+            return result
         
-        # Validate homeless
-        if "homeless" in form_data:
-            homeless_val = str(form_data["homeless"]).lower().strip()
-            if homeless_val in ["y", "yes", "n", "no"]:
-                validated["homeless"] = "y" if homeless_val in ["y", "yes"] else "n"
+        # Validate email_address (now required)
+        if "email_address" in form_data and form_data["email_address"]:
+            validated["email_address"] = str(form_data["email_address"]).strip()
+        else:
+            result["valid"] = False
+            result["error"] = "Email address is required"
+            return result
         
-        # Validate request_on_behalf
-        if "request_on_behalf" in form_data:
-            behalf_val = str(form_data["request_on_behalf"]).lower().strip()
-            if behalf_val in ["y", "yes", "n", "no"]:
-                validated["request_on_behalf"] = "y" if behalf_val in ["y", "yes"] else "n"
         
-        # Validate name_of_child
-        if "name_of_child" in form_data and form_data["name_of_child"]:
-            if validated.get("request_on_behalf") == "y":
-                validated["name_of_child"] = str(form_data["name_of_child"]).strip()
+        # Validate signup_type (or infer from request_on_behalf for backwards compatibility)
+        signup_type = form_data.get("signup_type")
+        if not signup_type and "request_on_behalf" in form_data:
+            # Convert old format to new format
+            signup_type = "child" if form_data["request_on_behalf"] == "y" else "self"
+        
+        if signup_type in ["self", "child"]:
+            validated["signup_type"] = signup_type
+        else:
+            result["valid"] = False
+            result["error"] = "Signup type must be 'self' or 'child'"
+            return result
+        
+        # Validate child_name (or name_of_child for backwards compatibility)
+        child_name = form_data.get("child_name") or form_data.get("name_of_child")
+        if validated["signup_type"] == "child":
+            if child_name:
+                validated["child_name"] = str(child_name).strip()
             else:
-                validated["name_of_child"] = None
-        elif validated.get("request_on_behalf") == "n":
-            validated["name_of_child"] = None
+                result["valid"] = False
+                result["error"] = "Child name is required when signup type is 'child'"
+                return result
+        else:
+            validated["child_name"] = None
         
-        return validated
+        result.update(validated)
+        return result
     
     def send_webhook(self, form_data: Dict[str, Any]) -> Dict[str, Any]:
         """
@@ -228,22 +242,23 @@ class WebhookAgent:
                 "error": "Failed to extract form data from user input"
             }
         
-        # Check if all required fields are present
-        required_fields = ["name_of_requestor", "homeless", "request_on_behalf"]
-        missing_fields = [field for field in required_fields if field not in form_data]
-        
-        if missing_fields:
+        # Validate the extracted data
+        validation_result = self._validate_form_data(form_data)
+        if not validation_result.get("valid", False):
             return {
                 "success": False,
-                "error": f"Missing required fields: {', '.join(missing_fields)}",
+                "error": validation_result.get("error", "Invalid form data"),
                 "extracted_data": form_data
             }
         
+        # Use the validated data
+        validated_form_data = {k: v for k, v in validation_result.items() if k not in ["valid", "error"]}
+        
         # Send webhook
-        webhook_result = self.send_webhook(form_data)
+        webhook_result = self.send_webhook(validated_form_data)
         
         return {
             "success": webhook_result["success"],
-            "form_data": form_data,
+            "form_data": validated_form_data,
             "webhook_result": webhook_result
         }

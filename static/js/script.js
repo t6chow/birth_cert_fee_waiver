@@ -1,6 +1,8 @@
 // Global variables
 let history = [];
-let currentTab = 'natural';
+let currentTab = 'chat';
+let chatSessionId = null;
+let isWaitingForResponse = false;
 
 // Initialize the application
 document.addEventListener('DOMContentLoaded', function() {
@@ -17,6 +19,18 @@ function switchTab(tabName) {
     // Add active class to selected tab
     document.querySelector(`button[onclick="switchTab('${tabName}')"]`).classList.add('active');
     document.getElementById(`${tabName}-tab`).classList.add('active');
+    
+    // Show/hide action buttons based on tab
+    const actionButtons = document.getElementById('actionButtons');
+    if (tabName === 'chat') {
+        actionButtons.style.display = 'none';
+        // Start chat session if not already started
+        if (!chatSessionId) {
+            startNewChat();
+        }
+    } else {
+        actionButtons.style.display = 'flex';
+    }
     
     currentTab = tabName;
 }
@@ -331,7 +345,7 @@ function updateHistoryDisplay() {
         const isSuccess = item.result.success;
         const inputText = item.input.input_type === 'natural' 
             ? item.input.input 
-            : `Name: ${item.input.adult_name || item.input.name_of_requestor || 'N/A'}${item.input.email_address ? `, Email: ${item.input.email_address}` : ''}, Type: ${item.input.signup_type || (item.input.request_on_behalf === 'y' ? 'child' : 'self')}${item.input.child_name || item.input.name_of_child ? `, Child: ${item.input.child_name || item.input.name_of_child}` : ''}`;`
+            : `Name: ${item.input.adult_name || item.input.name_of_requestor || 'N/A'}${item.input.email_address ? `, Email: ${item.input.email_address}` : ''}, Type: ${item.input.signup_type || (item.input.request_on_behalf === 'y' ? 'child' : 'self')}${item.input.child_name || item.input.name_of_child ? `, Child: ${item.input.child_name || item.input.name_of_child}` : ''}`;
         
         html += `
             <div class="history-item ${isSuccess ? 'result-success' : 'result-error'}">
@@ -466,6 +480,234 @@ function loadHistory() {
     } catch (error) {
         console.warn('Could not load history from localStorage:', error);
         history = [];
+    }
+}
+
+// Chat functionality
+async function startNewChat() {
+    try {
+        const response = await fetch('/api/chat/start', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            chatSessionId = result.data.session_id;
+            // Clear chat messages except the initial one
+            const chatMessages = document.getElementById('chatMessages');
+            const firstMessage = chatMessages.querySelector('.chat-message');
+            chatMessages.innerHTML = '';
+            chatMessages.appendChild(firstMessage);
+            
+            // Add the agent's first question
+            addChatMessage(result.data.message, 'agent');
+        } else {
+            showError('Failed to start chat: ' + result.error);
+        }
+    } catch (error) {
+        showError('Network error: ' + error.message);
+    }
+}
+
+async function sendChatMessage() {
+    const input = document.getElementById('chatInput');
+    const message = input.value.trim();
+    
+    if (!message || isWaitingForResponse) {
+        return;
+    }
+    
+    if (!chatSessionId) {
+        showError('Chat session not started. Please refresh and try again.');
+        return;
+    }
+    
+    // Add user message to chat
+    addChatMessage(message, 'user');
+    
+    // Clear input and show loading
+    input.value = '';
+    isWaitingForResponse = true;
+    updateChatInputState();
+    showTypingIndicator();
+    
+    try {
+        const response = await fetch('/api/chat/message', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                session_id: chatSessionId,
+                message: message
+            })
+        });
+        
+        const result = await response.json();
+        
+        // Remove typing indicator
+        removeTypingIndicator();
+        
+        if (result.success) {
+            const data = result.data;
+            
+            if (data.type === 'completion') {
+                // Show success message
+                addChatMessage(data.message, 'agent', 'success');
+                
+                // Show data summary
+                if (data.data_collected) {
+                    addDataSummary(data.data_collected, data.webhook_result);
+                }
+                
+                // Reset session
+                chatSessionId = null;
+                
+            } else {
+                // Show next question
+                addChatMessage(data.message, 'agent');
+            }
+        } else {
+            addChatMessage('Sorry, I encountered an error: ' + result.error, 'agent');
+        }
+        
+    } catch (error) {
+        removeTypingIndicator();
+        addChatMessage('Sorry, I encountered a network error. Please try again.', 'agent');
+        console.error('Chat error:', error);
+    }
+    
+    isWaitingForResponse = false;
+    updateChatInputState();
+}
+
+function handleChatKeypress(event) {
+    if (event.key === 'Enter' && !event.shiftKey) {
+        event.preventDefault();
+        sendChatMessage();
+    }
+}
+
+function addChatMessage(message, sender, type = '') {
+    const chatMessages = document.getElementById('chatMessages');
+    const messageDiv = document.createElement('div');
+    messageDiv.className = `chat-message ${sender}-message`;
+    
+    if (type === 'success') {
+        messageDiv.classList.add('success-message');
+    }
+    
+    const avatarIcon = sender === 'agent' ? 'fas fa-robot' : 'fas fa-user';
+    
+    messageDiv.innerHTML = `
+        <div class="message-avatar">
+            <i class="${avatarIcon}"></i>
+        </div>
+        <div class="message-content">
+            <p>${message}</p>
+        </div>
+    `;
+    
+    chatMessages.appendChild(messageDiv);
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+}
+
+function addDataSummary(data, webhookResult) {
+    const chatMessages = document.getElementById('chatMessages');
+    const messageDiv = document.createElement('div');
+    messageDiv.className = 'chat-message agent-message';
+    
+    let summaryHtml = `
+        <div class="message-avatar">
+            <i class="fas fa-check-circle"></i>
+        </div>
+        <div class="message-content">
+            <div class="data-summary-card">
+                <h4><i class="fas fa-clipboard-check"></i> Form Summary</h4>
+    `;
+    
+    // Add collected data
+    Object.entries(data).forEach(([key, value]) => {
+        if (value !== null && value !== '') {
+            const label = key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+            summaryHtml += `
+                <div class="data-summary-item">
+                    <span class="data-summary-label">${label}:</span>
+                    <span class="data-summary-value">${value}</span>
+                </div>
+            `;
+        }
+    });
+    
+    // Add webhook status
+    if (webhookResult) {
+        const status = webhookResult.success ? 'Submitted Successfully' : 'Submission Failed';
+        const statusIcon = webhookResult.success ? 'check-circle' : 'times-circle';
+        summaryHtml += `
+            <div class="data-summary-item">
+                <span class="data-summary-label">Status:</span>
+                <span class="data-summary-value">
+                    <i class="fas fa-${statusIcon}"></i> ${status}
+                </span>
+            </div>
+        `;
+    }
+    
+    summaryHtml += `
+            </div>
+        </div>
+    `;
+    
+    messageDiv.innerHTML = summaryHtml;
+    chatMessages.appendChild(messageDiv);
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+}
+
+function showTypingIndicator() {
+    const chatMessages = document.getElementById('chatMessages');
+    const typingDiv = document.createElement('div');
+    typingDiv.className = 'chat-message agent-message typing-indicator-message';
+    typingDiv.innerHTML = `
+        <div class="message-avatar">
+            <i class="fas fa-robot"></i>
+        </div>
+        <div class="typing-indicator">
+            <div class="typing-dots">
+                <span></span>
+                <span></span>
+                <span></span>
+            </div>
+        </div>
+    `;
+    
+    chatMessages.appendChild(typingDiv);
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+}
+
+function removeTypingIndicator() {
+    const typingIndicator = document.querySelector('.typing-indicator-message');
+    if (typingIndicator) {
+        typingIndicator.remove();
+    }
+}
+
+function updateChatInputState() {
+    const input = document.getElementById('chatInput');
+    const button = document.getElementById('chatSendBtn');
+    
+    if (isWaitingForResponse) {
+        input.disabled = true;
+        button.disabled = true;
+        button.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+    } else {
+        input.disabled = false;
+        button.disabled = false;
+        button.innerHTML = '<i class="fas fa-paper-plane"></i>';
+        input.focus();
     }
 }
 

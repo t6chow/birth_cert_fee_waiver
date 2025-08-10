@@ -1,12 +1,14 @@
 from flask import Flask, render_template, request, jsonify
 import os
 from webhook_agent import WebhookAgent
+from conversational_agent import ConversationalAgent
 import json
 
 app = Flask(__name__)
 
-# Initialize the webhook agent
+# Initialize the agents
 webhook_agent = None
+conversational_agent = None
 
 def get_agent():
     """Get or create the webhook agent instance."""
@@ -20,6 +22,19 @@ def get_agent():
             print(f"Error initializing webhook agent: {e}")
             return None
     return webhook_agent
+
+def get_conversational_agent():
+    """Get or create the conversational agent instance."""
+    global conversational_agent
+    if conversational_agent is None:
+        if not os.getenv('OPENAI_API_KEY'):
+            return None
+        try:
+            conversational_agent = ConversationalAgent()
+        except Exception as e:
+            print(f"Error initializing conversational agent: {e}")
+            return None
+    return conversational_agent
 
 @app.route('/')
 def index():
@@ -150,6 +165,68 @@ def process_form():
         return jsonify({
             'success': False,
             'error': f'Processing error: {str(e)}'
+        })
+
+@app.route('/api/chat/start', methods=['POST'])
+def start_chat():
+    """Start a new conversation."""
+    agent = get_conversational_agent()
+    if not agent:
+        return jsonify({
+            'success': False,
+            'error': 'Conversational agent not initialized - check API key configuration'
+        })
+    
+    try:
+        result = agent.start_conversation()
+        return jsonify({
+            'success': True,
+            'data': result
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        })
+
+@app.route('/api/chat/message', methods=['POST'])
+def send_chat_message():
+    """Send a message in an existing conversation."""
+    agent = get_conversational_agent()
+    if not agent:
+        return jsonify({
+            'success': False,
+            'error': 'Conversational agent not initialized - check API key configuration'
+        })
+    
+    try:
+        data = request.get_json()
+        session_id = data.get('session_id')
+        message = data.get('message', '').strip()
+        
+        if not session_id:
+            return jsonify({
+                'success': False,
+                'error': 'Session ID is required'
+            })
+        
+        if not message:
+            return jsonify({
+                'success': False,
+                'error': 'Message is required'
+            })
+        
+        result = agent.continue_conversation(session_id, message)
+        return jsonify({
+            'success': True,
+            'data': result
+        })
+        
+    except Exception as e:
+        print(f"Error in chat message: {e}")
+        return jsonify({
+            'success': False,
+            'error': f'Chat error: {str(e)}'
         })
 
 @app.errorhandler(404)
